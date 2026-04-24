@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snapshot</title>
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">%F0%9F%A6%8B</text></svg>' />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+
+  <nav id="site-nav" aria-label="Site sections">
+    <a href="./index.html" class="brand-link"><span class="site-nav-brand">&nbsp;</span></a>
+    <a href="./index.html" class="site-nav-link active">A</a>
+    <a href="./docs.html" class="site-nav-link">B</a>
+    <a href="./references.html" class="site-nav-link">C</a>
+  </nav>
+
+  <header id="header">
+    <h1>&nbsp;</h1>
+    <button class="btn btn-primary" id="btn-rebuild" style="display:none">[rebuild]</button>
+  </header>
+
+  <div id="toolbar">
+    <label for="sort-select">Sort:</label>
+    <select id="sort-select">
+      <option value="composite">&#9733;</option>
+      <option value="api_feasibility">A</option>
+      <option value="ease">B</option>
+      <option value="domain_learning">C</option>
+      <option value="agentic_ai_learning">D</option>
+      <option value="fun">E</option>
+      <option value="slide_page">F</option>
+    </select>
+
+    <label for="category-filter">Filter:</label>
+    <select id="category-filter">
+      <option value="">All</option>
+    </select>
+
+    <div class="toolbar-sep"></div>
+  </div>
+
+  <!-- Main: table + sidebar side-by-side -->
+  <div id="main">
+
+    <!-- Table -->
+    <div id="table-container">
+      <table id="projects-table">
+        <thead>
+          <tr>
+            <th data-col="pos">#</th>
+            <th data-col="title">Title</th>
+            <th data-col="api_feasibility">A</th>
+            <th data-col="ease">B</th>
+            <th data-col="domain_learning">C</th>
+            <th data-col="fun">D</th>
+            <th data-col="composite">&#9733;</th>
+            <th aria-label="drag"></th>
+          </tr>
+        </thead>
+        <tbody id="projects-tbody">
+          <!-- Rows injected by app.js -->
+        </tbody>
+      </table>
+    </div>
+
+    <aside id="sidebar" role="complementary">
+      <div id="sidebar-header" style="position: relative;">
+        <h2 id="sidebar-title">&nbsp;</h2>
+        <div id="sidebar-meta">&nbsp;<span id="sidebar-category"></span></div>
+        <button id="sidebar-close" aria-label="close" title="Close">&times;</button>
+      </div>
+
+      <div id="sidebar-tabs" role="tablist">
+        <button class="sidebar-tab active" data-tab="deep-dive" role="tab" aria-selected="true">1</button>
+        <button class="sidebar-tab" data-tab="website" role="tab" aria-selected="false">2</button>
+        <button class="sidebar-tab" data-tab="source" role="tab" aria-selected="false">3</button>
+        <button class="sidebar-tab" data-tab="history" role="tab" aria-selected="false">4</button>
+      </div>
+
+      <div id="sidebar-content">
+        <div class="sidebar-panel active" id="panel-deep-dive">
+          <div class="md-content" id="deep-dive-md-content">
+            <p class="loading-text">Loading&hellip;</p>
+          </div>
+        </div>
+
+        <div class="sidebar-panel" id="panel-website">
+          <div class="md-content" id="website-md-content">
+            <p class="loading-text">Loading&hellip;</p>
+          </div>
+        </div>
+
+        <div class="sidebar-panel" id="panel-scores">
+          <div class="scores-grid" id="scores-grid"></div>
+        </div>
+
+        <div class="sidebar-panel" id="panel-source">
+          <div class="md-content" id="source-md-content">
+            <p class="loading-text">Loading&hellip;</p>
+          </div>
+        </div>
+
+        <div class="sidebar-panel" id="panel-history">
+          <ul class="history-list" id="history-list"></ul>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <div id="statusbar">
+    <span id="status-count">Loading&hellip;</span>
+    <span id="status-last-updated"></span>
+  </div>
+
+</div>
+
+<script src="decrypt.js"></script>
+<script src="sortable.min.js"></script>
+<script src="marked.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

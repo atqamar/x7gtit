@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snapshot</title>
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">%F0%9F%A6%8B</text></svg>' />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav id="site-nav" aria-label="Site sections">
+    <a href="index.html" class="brand-link"><span class="site-nav-brand">&nbsp;</span></a>
+    <a href="./index.html" class="site-nav-link">A</a>
+    <a href="./docs.html" class="site-nav-link active">B</a>
+    <a href="./references.html" class="site-nav-link">C</a>
+  </nav>
+
+  <div id="docs-layout">
+    <aside id="docs-sidebar">
+      <div id="docs-section-title">&nbsp;</div>
+      <ul id="docs-file-list">
+        <li class="docs-file-loading">Loading&hellip;</li>
+      </ul>
+    </aside>
+
+    <main id="docs-content-wrap">
+      <div id="docs-breadcrumb">
+        <span id="docs-breadcrumb-section">&nbsp;</span>
+        <span class="docs-sep">/</span>
+        <span id="docs-breadcrumb-file">&mdash;</span>
+      </div>
+      <article id="docs-content" class="md-rendered">
+        <p class="docs-loading">Select an item from the sidebar.</p>
+      </article>
+    </main>
+  </div>
+
+  <script src="decrypt.js"></script>
+  <script src="marked.min.js"></script>
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      let file = params.get("file") || null;
+
+      const fileListEl = document.getElementById("docs-file-list");
+      const contentEl = document.getElementById("docs-content");
+      const crumbSectionEl = document.getElementById("docs-breadcrumb-section");
+      const crumbFileEl = document.getElementById("docs-breadcrumb-file");
+
+      if (window.marked && typeof window.marked.setOptions === "function") {
+        window.marked.setOptions({ gfm: true, breaks: true });
+      }
+      const mdParse = (window.marked && window.marked.parse) || window.marked;
+
+      let fileSectionMap = {};
+      let activeFile = null;
+      let activeApiSection = null;
+
+      function collectSlugs() {
+        const data = window.__DECRYPTED_DATA__ || {};
+        const sections = data.md_sections || {};
+        const order = [];
+        fileSectionMap = {};
+        Object.keys(sections).forEach(function (sec) {
+          Object.keys(sections[sec] || {}).forEach(function (slug) {
+            if (!(slug in fileSectionMap)) {
+              fileSectionMap[slug] = sec;
+              order.push({ slug: slug, section: sec });
+            }
+          });
+        });
+        return order;
+      }
+
+      function makeFileItem(slug, apiSection, isActive) {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.textContent = slug;
+        a.href = "docs.html?file=" + encodeURIComponent(slug);
+        if (isActive) a.classList.add("active");
+        a.addEventListener("click", (e) => {
+          e.preventDefault();
+          history.pushState(null, "", "docs.html?file=" + encodeURIComponent(slug));
+          fileListEl.querySelectorAll("a").forEach((x) => x.classList.remove("active"));
+          a.classList.add("active");
+          loadFile(slug, apiSection);
+        });
+        li.appendChild(a);
+        return li;
+      }
+
+      function renderSidebar(items) {
+        fileListEl.innerHTML = "";
+        items.forEach(function (it) {
+          fileListEl.appendChild(makeFileItem(it.slug, it.section, it.slug === activeFile));
+        });
+      }
+
+      function renderSidebarGroups(groups) {
+        fileListEl.innerHTML = "";
+        groups.forEach(function (g) {
+          if (g.label) {
+            var hdr = document.createElement("li");
+            hdr.className = "docs-subheader" + (g.style ? " docs-subheader-" + g.style : "");
+            hdr.textContent = g.label;
+            fileListEl.appendChild(hdr);
+          }
+          (g.items || []).forEach(function (it) {
+            fileListEl.appendChild(makeFileItem(it.file, it.section, it.file === activeFile));
+          });
+        });
+      }
+
+      function renderPromptHtml(text) {
+        var lines = text.split("\n");
+        var headingIdx = -1;
+        for (var i = 0; i < lines.length; i++) {
+          if (/^##\s.*(prompt|Block)/i.test(lines[i])) { headingIdx = i; break; }
+        }
+        if (headingIdx === -1) return null;
+
+        var firstHrIdx = -1;
+        for (var i = headingIdx + 1; i < lines.length; i++) {
+          if (/^---\s*$/.test(lines[i])) { firstHrIdx = i; break; }
+        }
+        if (firstHrIdx === -1) return null;
+
+        var whyIdx = -1;
+        for (var i = firstHrIdx + 1; i < lines.length; i++) {
+          if (/^##\s/.test(lines[i]) && i > headingIdx) { whyIdx = i; break; }
+        }
+        var secondHrIdx = -1;
+        if (whyIdx !== -1) {
+          for (var i = whyIdx - 1; i > firstHrIdx; i--) {
+            if (/^---\s*$/.test(lines[i])) { secondHrIdx = i; break; }
+          }
+        }
+        if (secondHrIdx === -1) {
+          for (var i = firstHrIdx + 1; i < lines.length; i++) {
+            if (/^---\s*$/.test(lines[i])) { secondHrIdx = i; break; }
+          }
+        }
+
+        var preamble = lines.slice(0, firstHrIdx).join("\n");
+        var promptLines = secondHrIdx === -1
+          ? lines.slice(firstHrIdx + 1)
+          : lines.slice(firstHrIdx + 1, secondHrIdx);
+        var promptBody = promptLines.join("\n").trim();
+        var epilogue = secondHrIdx !== -1
+          ? lines.slice(secondHrIdx + 1).join("\n").trim()
+          : "";
+
+        var escaped = promptBody
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        var escapedForAttr = promptBody
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+        var copyBtn = '<button class="btn btn-primary deep-dive-copy-btn" data-prompt="' + escapedForAttr + '">Copy</button>';
+        var html = mdParse(preamble);
+        html += copyBtn;
+        html += '<pre class="deep-dive-prompt"><code>' + escaped + '</code></pre>';
+        if (epilogue) html += mdParse(epilogue);
+        return html;
+      }
+
+      function rewriteLinks() {
+        contentEl.querySelectorAll("a[href^='http']").forEach((a) => {
+          a.setAttribute("target", "_blank");
+          a.setAttribute("rel", "noopener noreferrer");
+        });
+
+        contentEl
+          .querySelectorAll("a[href$='.md'], a[href*='.md#']")
+          .forEach((a) => {
+            const raw = a.getAttribute("href");
+            if (!raw || /^https?:/.test(raw)) return;
+
+            const hashIdx = raw.indexOf("#");
+            const pathPart = hashIdx >= 0 ? raw.substring(0, hashIdx) : raw;
+            const hashPart = hashIdx >= 0 ? raw.substring(hashIdx) : "";
+
+            let clean = pathPart.replace(/^\.\//, "");
+            const m = clean.match(/(?:\.\.\/)?([a-z-]+)\/([^\/]+)\.md$/);
+            if (m) {
+              if (m[1] === "references") {
+                a.href = "references.html" + hashPart;
+              } else {
+                const slug = m[2];
+                a.href = "docs.html?file=" + encodeURIComponent(slug) + hashPart;
+              }
+              return;
+            }
+            const sameSectionMatch = clean.match(/^([^\/]+)\.md$/);
+            if (sameSectionMatch) {
+              a.href = "docs.html?file=" + encodeURIComponent(sameSectionMatch[1]) + hashPart;
+            }
+          });
+      }
+
+      contentEl.addEventListener("click", function (e) {
+        var btn = e.target.closest(".deep-dive-copy-btn");
+        if (!btn) return;
+        var promptText = btn.dataset.prompt || "";
+        navigator.clipboard.writeText(promptText).then(function () {
+          var orig = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(function () { btn.textContent = orig; }, 2000);
+        }).catch(function (err) { console.error(err); });
+      });
+
+      function loadFile(name, apiSection) {
+        activeFile = name;
+        activeApiSection = apiSection || fileSectionMap[name] || null;
+        crumbFileEl.textContent = name;
+        crumbSectionEl.textContent = "";
+        contentEl.innerHTML = '<p class="docs-loading">Loading&hellip;</p>';
+
+        var data = window.__DECRYPTED_DATA__ || {};
+        var sections = data.md_sections || {};
+        var sectionData = (activeApiSection && sections[activeApiSection]) || {};
+        var md = sectionData[name];
+        if (md === undefined) {
+          contentEl.innerHTML = '<div class="docs-error">Not found.</div>';
+          return;
+        }
+        var promptHtml = renderPromptHtml(md);
+        contentEl.innerHTML = promptHtml ? promptHtml : mdParse(md);
+        rewriteLinks();
+      }
+
+      function boot() {
+        var data = window.__DECRYPTED_DATA__ || {};
+        var labels = data.labels || {};
+        var groups = labels.docs_sidebar_groups;
+
+        if (groups && groups.length) {
+          fileSectionMap = {};
+          var orderedItems = [];
+          groups.forEach(function (g) {
+            (g.items || []).forEach(function (it) {
+              if (!(it.file in fileSectionMap)) {
+                fileSectionMap[it.file] = it.section;
+                orderedItems.push(it);
+              }
+            });
+          });
+          if (orderedItems.length === 0) {
+            fileListEl.innerHTML = '<li class="docs-file-empty">Empty</li>';
+            return;
+          }
+          activeFile = (file && fileSectionMap[file]) ? file : orderedItems[0].file;
+          activeApiSection = fileSectionMap[activeFile];
+          renderSidebarGroups(groups);
+        } else {
+          var items = collectSlugs();
+          if (items.length === 0) {
+            fileListEl.innerHTML = '<li class="docs-file-empty">Empty</li>';
+            return;
+          }
+          activeFile = (file && fileSectionMap[file]) ? file : items[0].slug;
+          activeApiSection = fileSectionMap[activeFile];
+          renderSidebar(items);
+        }
+        loadFile(activeFile, activeApiSection);
+      }
+
+      if (window.__DECRYPTED_DATA__) {
+        boot();
+      } else {
+        document.addEventListener('data-decrypted', boot);
+      }
+    })();
+  </script>
+</body>
+</html>
